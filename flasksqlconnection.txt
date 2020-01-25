@@ -1,0 +1,193 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sql01
+spec:
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    name: mysql
+  type: ClusterIP
+
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-service
+spec:
+  externalIPs:
+  - 34.215.23.134
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 30084
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: webapp-pod
+  type: NodePort
+
+
+kubectl create secret generic db-secret --from-literal=DB_Host=sql01 --from-literal=DB_User=root --from-literal=DB_Password=password123
+
+
+====================
+
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: webapp-pod
+  name: webapp-pod
+spec:
+  containers:
+  - image: skmohanbe/webapp-mysql-connector
+    imagePullPolicy: Always
+    name: webapp
+    envFrom:
+    - secretRef:
+        name: db-secret
+
+kubectl create secret generic db-secret1 --from-literal=MYSQL_ROOT_PASSWORD=password123
+
+
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: mysql
+  name: mysql
+spec:
+  containers:
+  - env:
+    - name: MYSQL_ROOT_PASSWORD
+      valueFrom:
+         secretKeyRef:
+            name: db-secret1
+            key: MYSQL_ROOT_PASSWORD
+    image: mysql
+    name: mysql
+    ports:
+    - containerPort: 3306
+      protocol: TCP
+
+
+
+==========================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from flask import Flask
+from flask import render_template
+import socket
+import mysql.connector
+import os
+
+app = Flask(__name__)
+
+DB_Host = os.environ.get('DB_Host') or "localhost"
+DB_Database = os.environ.get('DB_Database') or "mysql"
+DB_User = os.environ.get('DB_User') or "root"
+DB_Password = os.environ.get('DB_Password') or "paswrd"
+
+@app.route("/")
+def main():
+    db_connect_result = False
+    err_message = ""
+    try:
+        mysql.connector.connect(host=DB_Host, database=DB_Database, user=DB_User, password=DB_Password)
+        color = '#39b54b'
+        db_connect_result = True
+    except Exception as e:
+        color = '#ff3f3f'
+        err_message = str(e)
+
+    return render_template('hello.html', debug="Environment Variables: DB_Host=" + (os.environ.get('DB_Host') or "Not Set") + "; DB_Database=" + (os.environ.get('DB_Database')  or "Not Set") + "; DB_User=" + (os.environ.get('DB_User')  or "Not Set") + "; DB_Password=" + (os.environ.get('DB_Password')  or "Not Set") + "; " + err_message, db_connect_result=db_connect_result, name=socket.gethostname(), color=color)
+
+@app.route("/debug")
+def debug():
+    color = '#2196f3'
+    return render_template('hello.html', debug="Environment Variables: DB_Host=" + (os.environ.get('DB_Host') or "Not Set") + "; DB_Database=" + (os.environ.get('DB_Database')  or "Not Set") + "; DB_User=" + (os.environ.get('DB_User')  or "Not Set") + "; DB_Password=" + (os.environ.get('DB_Password')  or "Not Set"), color=color)
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
+
+---------------------
+
+/opt/webapp-mysql # cat templates/hello.html
+<!doctype html>
+<title>Hello from Flask</title>
+<body style="background: {{ color }};"></body>
+<div style="color: #e4e4e4;
+    text-align:  center;
+    height: 90px;
+    vertical-align:  middle;">
+
+  {% if db_connect_result %}
+    <img src="{{ url_for('static', filename='img/success.jpg') }}">
+    <h3> Successfully connected to the MySQL database.</h3>
+  {% else %}
+    <img src="{{ url_for('static', filename='img/failed.png') }}">
+    <h3> Failed connecting to the MySQL database. </h3>
+  {% endif %}
+
+  {% if debug %}
+    <h2> {{ debug }} </h2>
+  {% endif %}
+
+  {% if name %}
+    <p> From {{ name }}!</p>
+  {% endif %}
+
+  {% if contents %}
+  <textarea rows="10" cols="50">
+    {{ contents }}
+  </textarea>
+  {% endif %}
+
+</div>
