@@ -1,0 +1,64 @@
+kubectl run --generator=run-pod/v1 --image=nginx nginx
+kubectl expose pod nginx12 --name=nginx12svc --port=80 --protocol=TCP --target-port=80 --external-ip=34.215.23.134 --type=NodePort
+
+
+kubectl run --generator=run-pod/v1 --image=nginx nginx1 --labels="env=dev"
+kubectl run --generator=run-pod/v1 --image=nginx nginx23 --labels="env=dev" --expose --port=30083 --limits="memory=512Mi,cpu=100m" --replicas=3
+
+
+echo -n 'admin' | base64
+echo -n 'root123' | base64
+
+
+kubectl create secret generic mysqldb --from-literal=mysqluser="admin" --from-literal=mysqlpass="root123"
+
+docker tag imageid 
+
+
+ETCDCTL_API=3 etcdctl -w table endpoint --cluster health  --endpoints=https://127.0.0.1:2379  --cacert=/etc/etcd/ca.crt  --cert=/etc/etcd/etcd-server.crt --key=/etc/etcd/etcd-server.key
+
+ETCDCTL_API=3 etcdctl -w table endpoint --cluster status --endpoints=https://127.0.0.1:2379  --cacert=/etc/etcd/ca.crt  --cert=/etc/etcd/etcd-server.crt --key=/etc/etcd/etcd-server.key
+
+ln -s /var/run/docker/netns /var/run/
+
+
+kubectl config set-cluster kubernetes-the-hard-way --certificate-authority=ca.crt --embed-certs=true --server=https://${KUBERNETES_LB_ADDRESS}:6443
+kubectl config set-credentials admin --client-certificate=admin.crt --client-key=admin.key
+kubectl config set-context kubernetes-the-hard-way --cluster=kubernetes-the-hard-way --user=admin
+
+
+curl -k  https://172.31.16.151:6443/metrics --key /root/keys/admin.key --cert /root/keys/admin.crt --cacert /var/lib/kubernetes/ca.crt
+
+curl -k  https://172.31.16.151:6443/healthz
+curl -k  https://172.31.16.151:6443/apis
+
+
+cat <<EOF | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1beta1
+kind: CertificateSigningRequest
+metadata:
+  name:  john-developer
+spec:
+  request: $(cat /root/john.csr | base64 | tr -d '\n')
+EOF
+
+
+
+kubectl auth can-i create deployments
+
+kubectl auth can-i delete nodes --as <username> --namespace <nsname>
+
+kubectl api-resources --namespace=false
+
+
+
+$.prizes[*].laureates[*].firstname
+$.prizes[?(@.year == "2014")].laureates[*].firstname
+
+kubectl get nodes -o=custom-columns=NODE:.metadata.name
+
+
+kubectl get pv --sort-by=.spec.capacity.storage -o=custom-columns=NAME:.metadata.name,CAPACITY:.spec.capacity.storage
+
+kubectl config view -o jsonpath="{.context[?(@.context.user=='aws-user')].name}"
+

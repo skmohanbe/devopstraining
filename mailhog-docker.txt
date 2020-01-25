@@ -1,0 +1,8 @@
+docker run -d --name=mailhog-1 -p 8025:8025 -p 1025:1025 --restart=unless-stopped mailhog/mailhog
+
+[root@docker mailhog]# docker ps -a
+CONTAINER ID        IMAGE               COMMAND             CREATED             STATUS              PORTS                                            NAMES
+5137913ff09a        mailhog/mailhog     "MailHog"           2 minutes ago       Up 2 minutes        0.0.0.0:1025->1025/tcp, 0.0.0.0:8025->8025/tcp   mailhog-1
+[root@docker mailhog]#
+
+It was accessible from 8025 port. 
