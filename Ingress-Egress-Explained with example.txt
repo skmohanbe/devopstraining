@@ -1,0 +1,235 @@
+$kubectl get pods payroll -o yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: payroll
+  name: payroll
+spec:
+  containers:
+  - env:
+    - name: APP_NAME
+      value: Payroll Application
+    - name: BG_COLOR
+      value: blue
+    image: skmohanbe/webapp-contest-payroll:v1
+    name: payroll
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+
+$ kubectl get svc  payroll-service -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: payroll-service
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 30083
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: payroll
+  type: NodePort
+
+========================================================================
+
+$ kubectl get svc internal-service -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: internal-service
+spec:
+  ports:
+  - nodePort: 30082
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: internal
+  type: NodePort
+
+
+$ kubectl get pods internal -o yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: internal
+  name: internal
+  namespace: default
+spec:
+  containers:
+  - env:
+    - name: APP_NAME
+      value: Internal Facing Application
+    - name: BG_COLOR
+      value: blue
+    image: skmohanbe/webapp-contest-payroll:v1
+    name: internal
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+=================================================
+
+$ kubectl get pods external -o yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: external
+  name: external
+spec:
+  containers:
+  - env:
+    - name: APP_NAME
+      value: External Facing Application
+    - name: BG_COLOR
+      value: red
+    image: skmohanbe/webapp-contest-payroll:v1
+    name: external
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+
+
+
+$kubectl get svc external-service -o yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: external-service
+  namespace: default
+spec:
+  ports:
+  - nodePort: 30080
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    name: external
+  type: NodePort
+
+==============================================================
+
+
+$ kubectl get pods mysql -o yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    name: mysql
+  name: mysql
+spec:
+  containers:
+  - env:
+    - name: MYSQL_ROOT_PASSWORD
+      value: paswrd
+    image: skmohanbe/mysql
+    name: mysql
+    ports:
+    - containerPort: 3306
+      protocol: TCP
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: db-service
+spec:
+  clusterIP: 10.107.230.102
+  ports:
+  - port: 3306
+    protocol: TCP
+    targetPort: 3306
+  selector:
+    name: mysql
+  type: ClusterIP
+
+==========================================
+
+So far internal application can access payroll, db and external services as well. 
+
+
+Create a network policy to allow traffic from the 'Internal' application only to the 'payroll-service' and 'db-service'
+
+
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: internal-policy
+spec:
+  ingress:
+   - {}
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          name: payroll
+    ports:
+    - port: 8080
+      protocol: TCP
+
+  - to:
+    - podSelector:
+        matchLabels:
+          name: mysql
+    ports:
+    - port: 3306
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      name: internal
+  policyTypes:
+  - Egress
+  - Ingress
+
+Network policy to allow internal-pod to access payroll pod at 8080 ( tis will be applied to payroll pod )
+--------------------------------------------------------------------------------
+
+$ kubectl get networkpolicies payroll-policy -o yaml
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: payroll-policy
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          name: internal
+    ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      name: payroll
+  policyTypes:
+  - Ingress
+
+===============================
+Still external service allows the connection from internal service at port 8080
+================================
+
+
+echo 'apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+  name: external-policy
+spec:
+  ingress:
+  - from:
+    - ipBlock:
+         cidr: 10.106.43.0/24
+    ports:
+    - port: 8080
+      protocol: TCP
+  podSelector:
+    matchLabels:
+      name: external
+  policyTypes:
+  - Ingress' | kubectl create -f - 
+
